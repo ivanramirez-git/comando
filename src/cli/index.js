@@ -31,41 +31,41 @@ class CLI {
 
   async run() {
     const options = program.opts();
-    
+
     // Manejar la configuración si se solicita
     if (options.config) {
       await this.configureSettings();
       return;
     }
-    
+
     // Verificar si se proporciona un prompt
     if (!this.promptArgs || this.promptArgs.length === 0) {
       this.showUsage();
       return;
     }
-    
+
     const prompt = this.promptArgs.join(' ');
     const providerType = options.provider || this.config.defaultProvider || 'openai';
-    
+
     try {
       // Crear el proveedor de IA según la configuración
       const aiProvider = AIProviderFactory.createProvider(providerType, this.config);
-      
+
       // Verificar si la configuración es válida
       if (!aiProvider.isConfigValid()) {
         Formatter.showError(`El proveedor ${aiProvider.getName()} requiere una API key. Por favor, configura la CLI con 'comando --config'.`);
         process.exit(1);
       }
-      
+
       // Generar el código con el proveedor seleccionado
       await this.generateAndRunCode(aiProvider, prompt, options);
-      
+
     } catch (error) {
       Formatter.showError(error.response?.data?.error?.message || error.message);
       process.exit(1);
     }
   }
-  
+
   showUsage() {
     console.log(chalk.yellow('⚠️  Debe proporcionar un prompt para generar un comando.'));
     console.log('\nUso básico:');
@@ -76,25 +76,39 @@ class CLI {
     console.log(chalk.cyan('  -c, --config     ') + 'Configurar los ajustes de la aplicación');
     console.log(chalk.cyan('  -h, --help       ') + 'Mostrar esta ayuda');
     console.log(chalk.cyan('  -V, --version    ') + 'Mostrar la versión');
-    
+
     console.log('\nEjemplos:');
     console.log(chalk.green('  comando "listar archivos ordenados por tamaño"'));
     console.log(chalk.green('  comando --provider gemini "encontrar procesos que consumen más memoria"'));
     console.log(chalk.green('  comando --force "crear un backup de este directorio"'));
   }
-  
+
+  cleanMarkdownCodeBlocks(text) {
+    // Primero intenta extraer el contenido de un bloque de código completo
+    const codeBlockMatch = text.match(/```(?:bash|sh)?\s*\n([\s\S]*?)\n\s*```/);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+
+    // Si no encuentra un bloque completo, elimina cualquier marcador de inicio/fin de código
+    return text
+      .replace(/```(?:bash|sh)?\s*/g, '')
+      .replace(/```/g, '')
+      .trim();
+  }
+
   async generateAndRunCode(aiProvider, prompt, options) {
     // Iniciar spinner de carga
     const spinner = ora(`Generando comando con ${aiProvider.getName()}...`).start();
-    
+
     try {
-      // Generar código con el proveedor de IA
-      const code = await aiProvider.generateCode(prompt);
+      // Generar código con el proveedor de IA y limpiar el resultado de Markdown
+      const code = this.cleanMarkdownCodeBlocks(await aiProvider.generateCode(prompt));
       spinner.succeed(chalk.green(`¡Código generado con ${aiProvider.getName()}!`));
-      
+
       // Mostrar el código con resaltado de sintaxis
       Formatter.highlightCode(code);
-      
+
       // Preguntar si se quiere ejecutar el código
       let shouldRun = options.force;
       if (!shouldRun) {
@@ -107,11 +121,11 @@ class CLI {
         }]);
         shouldRun = answer.execute;
       }
-      
+
       if (shouldRun) {
         // Guardar el comando en el historial
         configManager.writeToHistory(code);
-        
+
         // Ejecutar el código
         await this.executeCode(code);
       }
@@ -120,11 +134,11 @@ class CLI {
       process.exit(1);
     }
   }
-  
+
   async executeCode(code) {
     // Mostrar spinner durante la ejecución
     const executeSpinner = ora('Ejecutando...').start();
-    
+
     // Crear un archivo temporal para el script
     const tempScriptPath = path.join(__dirname, '..', '..', '.tmp.sh');
     fs.writeFileSync(tempScriptPath, code);
@@ -135,18 +149,18 @@ class CLI {
       const child = spawn('bash', ['-c', code], {
         stdio: ['inherit', 'pipe', 'pipe']
       });
-      
+
       let stdout = '';
       let stderr = '';
-      
+
       child.stdout.on('data', (data) => {
         stdout += data.toString();
       });
-      
+
       child.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       child.on('close', (exitCode) => {
         // Limpiar archivo temporal
         try {
@@ -154,7 +168,7 @@ class CLI {
         } catch (err) {
           // Ignorar error si no se puede eliminar
         }
-        
+
         if (exitCode === 0) {
           executeSpinner.succeed(chalk.green('Comando ejecutado correctamente'));
           if (stdout) console.log(stdout);
@@ -167,10 +181,10 @@ class CLI {
       });
     });
   }
-  
+
   async configureSettings() {
     const currentConfig = configManager.loadConfig();
-    
+
     const answers = await inquirer.prompt([
       {
         type: 'list',
@@ -208,10 +222,10 @@ class CLI {
         when: (answers) => answers.defaultProvider === 'gemini'
       }
     ]);
-    
+
     // Actualizar configuración
     const newConfig = { ...currentConfig, ...answers };
-    
+
     if (configManager.saveConfig(newConfig)) {
       Formatter.showSuccess('Configuración guardada correctamente.');
     } else {
