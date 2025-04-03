@@ -10,6 +10,8 @@ Puedes instalar `comando` con cloneando el repositorio y ejecutando el script de
 git clone https://github.com/ivanramirez-git/comando.git
 cd comando
 node install.js
+cd ..
+rm -rf comando
 ```
 
 Alternativamente, puedes clonar este repositorio y vincularlo localmente:
