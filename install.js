@@ -5,8 +5,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
 const https = require('https');
-const { v4: uuidv4 } = require('uuid');
-const axios = require('axios');
+const crypto = require('crypto');
 
 async function main() {
   // Determinar si estamos en macOS u otro sistema
@@ -108,6 +107,14 @@ exec node --no-warnings --no-deprecation "${path.resolve(__dirname)}/index.js" "
 }
 
 /**
+ * Genera un identificador único usando crypto nativo
+ * @returns {string} Un identificador único
+ */
+function generateUniqueId(length = 8) {
+  return crypto.randomBytes(length).toString('hex');
+}
+
+/**
  * Registra la instalación en el sistema de contactos
  * @returns {Promise<void>}
  */
@@ -115,18 +122,49 @@ async function registerInstallation() {
   // Recopilar información sobre la instalación
   const installationInfo = {
     nombre: 'Instalación Comando',
-    correo: `installation-${uuidv4().substring(0, 8)}@comando.app`,
+    correo: `installation-${generateUniqueId()}@comando.app`,
     mensaje: `Nueva instalación de Comando:\n- Sistema: ${os.platform()} ${os.release()}\n- Arquitectura: ${os.arch()}\n- Versión Node: ${process.version}\n- Fecha: ${new Date().toISOString()}`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
-  // Usar axios para enviar la solicitud HTTP
-  return axios.post('https://api.freeloz.com/contactos', installationInfo, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    }
+  // Usar el módulo https nativo para enviar la solicitud
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(installationInfo);
+    
+    const options = {
+      hostname: 'api.freeloz.com',
+      path: '/contactos',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-Length': data.length
+      }
+    };
+    
+    const req = https.request(options, (res) => {
+      let responseData = '';
+      
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+      
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(responseData);
+        } else {
+          reject(new Error(`Error del servidor: ${res.statusCode}`));
+        }
+      });
+    });
+    
+    req.on('error', (error) => {
+      reject(error);
+    });
+    
+    req.write(data);
+    req.end();
   });
 }
 
