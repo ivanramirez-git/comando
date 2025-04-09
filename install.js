@@ -4,19 +4,22 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
+const https = require('https');
+const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
-function main() {
+async function main() {
   // Determinar si estamos en macOS u otro sistema
   const isMac = process.platform === 'darwin';
-  
+
   // Definir la estructura de directorios
   const homeDir = os.homedir();
   const comandoDir = path.join(homeDir, '.comando');
   const binDir = path.join(comandoDir, 'bin');
   const binPath = path.join(binDir, 'comando');
-  
+
   console.log(`Creando directorios de instalación en ${comandoDir}...`);
-  
+
   // Crear la estructura de directorios
   try {
     fs.mkdirSync(comandoDir, { recursive: true });
@@ -45,7 +48,7 @@ exec node --no-warnings --no-deprecation "${path.resolve(__dirname)}/index.js" "
     // Hacer el binario ejecutable
     fs.chmodSync(binPath, '755');
     console.log(`Binario creado en ${binPath}`);
-    
+
   } catch (err) {
     console.error(`Error al crear el binario: ${err.message}`);
     process.exit(1);
@@ -54,7 +57,7 @@ exec node --no-warnings --no-deprecation "${path.resolve(__dirname)}/index.js" "
   // Determinar el archivo de perfil de shell
   let profilePath;
   const shell = process.env.SHELL || '';
-  
+
   if (shell.includes('zsh')) {
     profilePath = path.join(homeDir, '.zshrc');
   } else if (shell.includes('bash')) {
@@ -70,7 +73,7 @@ exec node --no-warnings --no-deprecation "${path.resolve(__dirname)}/index.js" "
     try {
       const profileContent = fs.readFileSync(profilePath, 'utf8');
       const pathEntry = `export PATH="$PATH:${binDir}"`;
-      
+
       if (!profileContent.includes(binDir)) {
         fs.appendFileSync(profilePath, `\n# Agregado por comando installer\n${pathEntry}\n`);
         console.log(`Se agregó ${binDir} al PATH en ${profilePath}`);
@@ -85,14 +88,50 @@ exec node --no-warnings --no-deprecation "${path.resolve(__dirname)}/index.js" "
   try {
     console.log('Instalando dependencias del proyecto...');
     execSync('npm install', { stdio: 'inherit', cwd: __dirname });
+
+    // Registrar la instalación en el sistema de contactos
+    try {
+      await registerInstallation();
+      console.log('Instalación registrada en el sistema de contactos.');
+    } catch (err) {
+      console.log(`Nota: No se pudo registrar la instalación en el sistema: ${err.message}`);
+    }
+
     console.log('Instalación completada con éxito.');
     console.log(`\nPara utilizar comando, reinicie su terminal o ejecute:`);
     console.log(`  source ${profilePath}`);
-    console.log(`\nLuego podrá usar: comando <su-prompt>`);
+    console.log(`\nLuego podrá usar: comando para saber cuanto es 1+1`);
   } catch (err) {
     console.error(`Error durante la instalación: ${err.message}`);
     process.exit(1);
   }
 }
 
-main();
+/**
+ * Registra la instalación en el sistema de contactos
+ * @returns {Promise<void>}
+ */
+async function registerInstallation() {
+  // Recopilar información sobre la instalación
+  const installationInfo = {
+    nombre: 'Instalación Comando',
+    correo: `installation-${uuidv4().substring(0, 8)}@comando.app`,
+    mensaje: `Nueva instalación de Comando:\n- Sistema: ${os.platform()} ${os.release()}\n- Arquitectura: ${os.arch()}\n- Versión Node: ${process.version}\n- Fecha: ${new Date().toISOString()}`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // Usar axios para enviar la solicitud HTTP
+  return axios.post('https://api.freeloz.com/contactos', installationInfo, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  });
+}
+
+// Ejecutar la función principal y manejar cualquier error
+main().catch(err => {
+  console.error(`Error inesperado: ${err.message}`);
+  process.exit(1);
+});

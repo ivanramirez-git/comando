@@ -21,7 +21,8 @@
     "highlight.js": "^11.8.0",
     "inquirer": "^8.2.5",
     "openai": "^4.24.1",
-    "ora": "^5.4.1"
+    "ora": "^5.4.1",
+    "uuid": "^9.0.1"
   },
   "engines": {
     "node": ">=14"
