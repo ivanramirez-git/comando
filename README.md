@@ -7,11 +7,12 @@ Una herramienta CLI que genera scripts de shell a partir de una descripción en 
 Puedes instalar `comando` con cloneando el repositorio y ejecutando el script de instalación:
 
 ```
+current_dir=$(pwd)
+cd ~
 git clone https://github.com/ivanramirez-git/comando.git
 cd comando
 node install.js
-cd ..
-rm -rf comando
+cd $current_dir
 ```
 
 Alternativamente, puedes clonar este repositorio y vincularlo localmente:
