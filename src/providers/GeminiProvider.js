@@ -52,7 +52,7 @@ class GeminiProvider extends AIProvider {
             osHint = ' (en Windows)';
         }
 
-        return `${prompt}${osHint}. Genera ÚNICAMENTE código bash que sea SEGURO y NO cause daños irreparables al sistema. No incluyas explicaciones adicionales. Solo muestra el código bash que debe ejecutarse.`;
+        return `${prompt}${osHint}. Genera ÚNICAMENTE código bash que sea SEGURO y NO cause daños irreparables al sistema. No incluyas explicaciones adicionales. Solo muestra el código bash que debe ejecutarse. Que el comando bash sea minimalista, si es posible resolverlo en una línea máximo dos. No incluyas ningún comentario.`;
     }
 
     isConfigValid() {
