@@ -11,7 +11,7 @@
     "start": "node index.js",
     "production": "NODE_ENV=production node --no-warnings --no-deprecation index.js"
   },
-  "author": "",
+  "author": "ivanramirez-git",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.4.0",
